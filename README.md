@@ -115,7 +115,7 @@ pip install packaging
 pip install mutagen
 pip install torchmetrics
 
-git clone https://gitlab.com/kinlp/DeepKIN.git
+git clone https://github.com/anzeyimana/DeepKIN.git
 
 cd DeepKIN/
 
