@@ -29,7 +29,7 @@ In order to download it from a terminal (i.e. on a remote server), you need to u
 4. Copy the Access token
 5. Run the following command in terminal, where ACCESS_TOKEN is the access token copied above:
 ```
-curl -H "Authorization: Bearer ACCESS_TOKEN" https://www.googleapis.com/drive/v3/files/1Vj-aMIp4LuO3Rkvu_uJKvNdAWh5YntGO?alt=media -o KINLP.tar.gz
+curl -H "Authorization: Bearer ACCESS_TOKEN" https://www.googleapis.com/drive/v3/files/1Kt9YXhLw_UVMCefcRGworyHUdh-tyQRj?alt=media -o KINLP.tar.gz
 ```
 
 The morphological analyzer/generator package installation directory needs to be refered as `KINLP_HOME` environmental variable or be installed in `/opt/KINLP` path as follow:
