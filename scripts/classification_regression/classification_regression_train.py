@@ -218,11 +218,10 @@ def cls_reg_do_train_main(_rank, args, cfg: BaseConfig, from_db_app):
     torch.backends.cudnn.allow_tf32 = True
     torch.cuda.set_device(args.default_device)
 
-    kinlp_conf = '/home/nzeyi/KINLP/data/config_kinlp.conf'
     build_kinlpy_lib()
     from kinlpy import ffi, lib
-    lib.init_kinlp_socket(kinlp_conf.encode('utf-8'))
-    print('KINLPY Morpho-Analysis-Synthesis Lib Ready via Unix Socket!', flush=True)
+    lib.init_kinlp_socket()
+    print('Morphokin library ready via Unix Socket!', flush=True)
 
     mydb = None
 
