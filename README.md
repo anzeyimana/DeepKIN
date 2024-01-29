@@ -51,7 +51,7 @@ Before using the morphological analyzer/generator, the following packages are ne
 You can install them on Ubuntu Linux as follow:
 ```
 sudo apt update
-sudo apt install -y gcc g++ make cmake libomp-dev libgsl-dev gsl-bin libgsl-dbg python3-pybind11 pybind11-dev unicode libicu-dev
+sudo apt install -y nano gcc g++ make cmake libomp-dev libgsl-dev gsl-bin libgsl-dbg python3-pybind11 pybind11-dev unicode libicu-dev
 ```
 This has only been tested on Ubuntu versions 18.04, 20.04 and 22.04.
 
@@ -114,6 +114,7 @@ pip install fastBPE
 pip install packaging
 pip install mutagen
 pip install torchmetrics
+pip install pandas
 
 git clone https://github.com/anzeyimana/DeepKIN.git
 

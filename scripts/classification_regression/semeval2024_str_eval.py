@@ -56,11 +56,14 @@ if __name__ == '__main__':
     cls_reg_model.eval()
 
     df = pd.read_csv(args.eval_dataset)
-    f = open(f'pred_kin_a.csv','w')
+    f = open(f'{args.output_file}','w')
     f.write('PairID,Pred_Score\n')
+    itr = 0
     with progressbar.ProgressBar(max_value=(df.shape[0]), redirect_stdout=True) as bar:
-        for pair_id, text in zip(df['PairID'].values, df['text'].values):
+        for pair_id, text in zip(df['PairID'].values, df['Text'].values):
+            bar.update(itr)
             scores = cls_reg_inference(ffi, lib, cls_reg_model, device, [text])
             score = scores[0]
             f.write(f'{pair_id},{score[0]:.3f}\n')
+            itr += 1
     f.close()

@@ -104,6 +104,7 @@ def add_finetune_and_inference_args(parser: ArgumentParser, list_args=None, sile
     parser.add_argument("--saved-cls-head", type=str, default=None)
 
     parser.add_argument("--models-save-dir", type=str, default=None)
+    parser.add_argument("--output-file", type=str, default="output.txt")
 
     if list_args is not None:
         args = parser.parse_args(list_args)

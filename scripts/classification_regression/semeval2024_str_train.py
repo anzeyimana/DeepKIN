@@ -41,10 +41,10 @@ def semeval2024_do_train_main(_rank, args, cfg: BaseConfig):
 
     training_engine = TrainingEngine(args, mydb, device, task_id)
 
-    labels = sorted(args.cls_labels.split(','))
-    label_dict = {v: k for k, v in enumerate(labels)}
+    args.regression_scale_factor = 1.0
+    args.cls_labels = '0'
 
-    num_classes = len(label_dict)
+    num_classes = 1
     batch_size = args.batch_size
     accumulation_steps = args.accumulation_steps
 
@@ -60,8 +60,7 @@ def semeval2024_do_train_main(_rank, args, cfg: BaseConfig):
     train_data_loader = DataLoader(train_dataset, batch_size=batch_size, collate_fn=cls_reg_data_collate_wrapper,
                                    shuffle=True, drop_last=True, num_workers=2, persistent_workers=True)
 
-    cls_model = KinyaBERT_SequenceClassifier_from_pretrained(num_classes, device, args, cfg,
-                                                             args.home_path + 'data/' + args.pretrained_model_file)
+    cls_model = KinyaBERT_SequenceClassifier_from_pretrained(num_classes, device, args, cfg, args.pretrained_model_file)
     if args.saved_cls_head is not None:
         cls_head_state_dict = torch.load(args.saved_cls_head, map_location=device)
         cls_model.cls_head.load_state_dict(cls_head_state_dict['cls_head_state_dict'])
