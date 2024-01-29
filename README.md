@@ -165,8 +165,20 @@ python3 scripts/bert_gpt/ner_test.py --input="Rwamagana: Bagiye guhugura abangav
 ```
 bash ./scripts/data/benchmark_data_process.sh
 ```
-
 Note that the above scripts are not tuned to the best hyper-parameter setup. The goal is to be able to run the models on your platform.
+
+#### 7. Training and evaluating KinyaBERT model on Semantic Textual Relatedness from SemEval 2024 Task 1:
+First download the data from https://github.com/semantic-textual-relatedness/Semantic_Relatedness_SemEval2024,
+Then perform training and evaluation using scripts inside `DeepKIN/scripts/classification_regression`
+```
+cd DeepKIN/scripts/classification_regression
+
+sh train.sh
+
+sh eval.sh
+```
+Note that to get high performance, one will need to adjust hyper-parameters and have some data augmentation.
+
 
 
 ## Citation
