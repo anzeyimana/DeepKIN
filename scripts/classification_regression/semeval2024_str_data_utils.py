@@ -4,6 +4,7 @@ import random
 import time
 
 import pandas as pd
+from deepkin.utils.misc_functions import read_lines
 from torch.utils.data import Dataset
 
 from classification_regression_data_util import prepare_cls_reg_input_segments
@@ -20,18 +21,21 @@ class Semeval2024StrRegDataset(Dataset):
         self.itemized_data = []
         if (task_id is not None) and (update_task_state_func is not None):
             update_task_state_func(mydb, task_id, 'Reading and parsing input data', 0.0)
-        df = pd.read_csv(input_file)
         start = time.time()
         itr = 0
-        tot = df.shape[0]
         if score_column is None:
-            for text in df['Text'].values:
+            lines = read_lines(input_file)
+            tot = len(lines)
+            for line in lines:
                 itr += 1
-                inputs = []
-                for line in text.split('\n'):
-                    inputs.append(parse_text_to_morpho_sentence(ffi, lib, line))
-                self.itemized_data.append((None, prepare_cls_reg_input_segments(inputs)))
+                inputs = [parse_text_to_morpho_sentence(ffi, lib, l) for l in line.split('\t')[:2]]
+                self.itemized_data.append((float(line.split('\t')[-1]), prepare_cls_reg_input_segments(inputs)))
+                if ((itr % 1000) == 0) and (task_id is not None) and (update_task_state_func is not None):
+                    now = time.time()
+                    update_task_state_func(mydb, task_id, 'Parsing input data', 100.0 * itr / tot, eta=((now - start) * (tot - itr) / itr))
         else:
+            df = pd.read_csv(input_file)
+            tot = df.shape[0]
             for text,score in zip(df['Text'].values,df[score_column].values):
                 itr += 1
                 inputs = []
@@ -41,6 +45,8 @@ class Semeval2024StrRegDataset(Dataset):
                 if ((itr % 1000) == 0) and (task_id is not None) and (update_task_state_func is not None):
                     now = time.time()
                     update_task_state_func(mydb, task_id, 'Parsing input data', 100.0 * itr / tot, eta=((now - start) * (tot - itr) / itr))
+        if (task_id is not None) and (update_task_state_func is not None):
+            update_task_state_func(mydb, task_id, 'Done Reading and parsing input data', 100.0, eta=0)
         if shuffle:
             random.shuffle(self.itemized_data)
 

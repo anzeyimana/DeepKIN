@@ -19,8 +19,8 @@ In order to run the morphological analyzer/generator, the system must meet the f
 - Drive space: 45 GB, (64 GB recommended)
 - System memory (RAM): 40 GB (64 GB recommended)
 
-The morphological analyze is available for download from the following Google Drive link:
-https://drive.google.com/file/d/1Vj-aMIp4LuO3Rkvu_uJKvNdAWh5YntGO/view
+The morphological analyzer is available for download from the following Google Drive link:
+https://drive.google.com/file/d/1Kt9YXhLw_UVMCefcRGworyHUdh-tyQRj/view
 With the link, you can download it directly to your machine.
 In order to download it from a terminal (i.e. on a remote server), you need to use an OAuth token as in the following steps:
 1. Go to OAuth 2.0 Playground https://developers.google.com/oauthplayground/
