@@ -51,7 +51,7 @@ Before using the morphological analyzer/generator, the following packages are ne
 You can install them on Ubuntu Linux as follow:
 ```
 sudo apt update
-sudo apt install -y nano gcc g++ make cmake libomp-dev libgsl-dev gsl-bin libgsl-dbg python3-pybind11 pybind11-dev unicode libicu-dev
+sudo apt install -y nano gcc g++ make cmake ninja-build libomp-dev libgsl-dev gsl-bin libgsl-dbg python3-pybind11 pybind11-dev unicode libicu-dev
 ```
 This has only been tested on Ubuntu versions 18.04, 20.04 and 22.04.
 
@@ -116,13 +116,23 @@ pip install mutagen
 pip install torchmetrics
 pip install pandas
 
+
+git clone https://github.com/pytorch/fairseq
+cd fairseq
+pip install -e ./
+
+
+git clone https://github.com/NVIDIA/apex
+cd apex
+# if pip >= 23.1 (ref: https://pip.pypa.io/en/stable/news/#v23-1) which supports multiple `--config-settings` with the same key... 
+pip install -v --disable-pip-version-check --no-cache-dir --no-build-isolation --config-settings "--build-option=--cpp_ext" --config-settings "--build-option=--cuda_ext" ./
+# otherwise
+pip install -v --disable-pip-version-check --no-cache-dir --no-build-isolation --global-option="--cpp_ext" --global-option="--cuda_ext" ./
+
+
 git clone https://github.com/anzeyimana/DeepKIN.git
 
 cd DeepKIN/
-
-pip install -e ./deps/fairseq-0.12.1/
-
-pip install -v --disable-pip-version-check --no-cache-dir --global-option="--cpp_ext" --global-option="--cuda_ext" ./deps/apex/
 
 pip install -e ./
 
@@ -179,7 +189,20 @@ sh eval.sh
 ```
 Note that to get high performance, one will need to adjust hyper-parameters and have some data augmentation.
 
+#### 8. Using KinyaBERT model for a question answering (QA) chatbot:
+The code needed for adapting KinyaBERT to question answering/chatbot application can be found in `DeepKIN/scripts/KinyaBERT_IR_QA`
+The steps needed are:
+1. Prepare a question-answering dataset in JSON format, similar to `scripts/KinyaBERT_IR_QA/qa_data.json`
+2. Prepare a fine-tuning dataset that includes both the target QA data and the QNLI corpus to learn high quality embeddings for question answering
+    - Script: `python scripts/KinyaBERT_IR_QA/prepare_qa_corpus.py`
+3. Run the fine-tuning step (Post-MLM) to learn target embeddings
+    - Script: `sh scripts/KinyaBERT_IR_QA/post_mlm.sh`
+4. Run a question answering chatbot evaluation using your dataset
+    - Script: `scripts/KinyaBERT_IR_QA/chatbot_app.sh`
 
+The idea is to find an answer whose question patterns has the highest average cosine similarity (in embedding space) to the question asnked by the user.
+This is introduced in Section 14.2 of "Speech and Language Processing (3rd ed. draft)" by Dan Jurafsky and James H. Martin.
+![QA Architecture](scripts/KinyaBERT_IR_QA/QA_Embedding.png)
 
 ## Citation
 

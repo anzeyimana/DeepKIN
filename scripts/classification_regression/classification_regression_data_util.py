@@ -4,6 +4,7 @@ import random
 import time
 import warnings
 from typing import List
+import progressbar
 
 import torch
 from torch.utils.data import Dataset
@@ -65,7 +66,7 @@ def prepare_cls_reg_input_segments(input_segments: List[ParsedMorphoSentence], m
 
 class ClsRegDataset(Dataset):
 
-    def __init__(self, ffi, lib, mydb, input_file_tsv,
+    def __init__(self, mydb, input_file_tsv,
                  requires_morpho_analysis=True,
                  label_dict=None,
                  regression_target=False,
@@ -74,30 +75,35 @@ class ClsRegDataset(Dataset):
                  max_seq_len = 512,
                  task_id=None,
                  update_task_state_func = None):
+        from kinlpy import ffi, lib
+        lib.init_kinlp_socket()
+        print('Morphokin library ready via Unix Socket!', flush=True)
         if (task_id is not None) and (update_task_state_func is not None):
             update_task_state_func(mydb, task_id, 'Reading input data', 0.0)
         lines = read_lines(input_file_tsv)
         lines_split = [line.split('\t') for line in lines]
         self.itemized_data = []
         start = time.time()
-        for idx,cols in enumerate(lines_split):
-            if regression_target:
-                label = (float(cols[-1]) / regression_scale_factor)
-            elif multi_label_cls:
-                label = [label_dict[l.strip()] for l in cols[-1].split(',')]
-            else:
-                label = label_dict[cols[-1]]
-            if requires_morpho_analysis:
-                inputs = prepare_cls_reg_input_segments(
-                    [parse_text_to_morpho_sentence(ffi, lib, col, attempt_auto_correction=False) for col in cols[:-1]],
-                    max_len=max_seq_len)
-            else:
-                inputs = prepare_cls_reg_input_segments([ParsedMorphoSentence(txt) for txt in cols[:-1]],
-                                               max_len=max_seq_len)
-            self.itemized_data.append((label,inputs))
-            if (((idx+1) % 1000) == 0) and (task_id is not None) and (update_task_state_func is not None):
-                now = time.time()
-                update_task_state_func(mydb, task_id, 'Parsing input data', 100.0 * (idx+1) / len(lines_split), eta = ((now-start) * (len(lines_split)-(idx+1)) / (idx+1)))
+        with progressbar.ProgressBar(max_value=len(lines_split), redirect_stdout=True) as bar:
+            for idx,cols in enumerate(lines_split):
+                if ((idx % 100) == 0) and (task_id is not None) and (update_task_state_func is not None):
+                    bar.update(idx)
+                    now = time.time()
+                    update_task_state_func(mydb, task_id, 'Parsing input data', 100.0 * (idx) / len(lines_split), eta = ((now-start) * (len(lines_split)-(idx)) / (idx+1)))
+                if regression_target:
+                    label = (float(cols[-1]) / regression_scale_factor)
+                elif multi_label_cls:
+                    label = [label_dict[l.strip()] for l in cols[-1].split(',')]
+                else:
+                    label = label_dict[cols[-1]]
+                if requires_morpho_analysis:
+                    inputs = prepare_cls_reg_input_segments(
+                        [parse_text_to_morpho_sentence(ffi, lib, col) for col in cols[:-1]],
+                        max_len=max_seq_len)
+                else:
+                    inputs = prepare_cls_reg_input_segments([ParsedMorphoSentence(txt) for txt in cols[:-1]],
+                                                   max_len=max_seq_len)
+                self.itemized_data.append((label,inputs))
         random.shuffle(self.itemized_data)
 
     def __len__(self):

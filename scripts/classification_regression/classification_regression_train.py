@@ -10,6 +10,8 @@ import torch.nn.functional as F
 from scipy import stats
 from torch.utils.data import DataLoader
 from torchmetrics.classification import MultilabelF1Score
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
 
 from arguments_util import add_dropout_args, \
     add_finetune_and_inference_args, add_base_model_arch_args
@@ -21,9 +23,6 @@ from deepkin.models.modules import BaseConfig
 from deepkin.optim.adamw import mAdamW
 from deepkin.optim.learning_rates import AnnealingLR
 from deepkin.utils.misc_functions import time_now
-
-training_engine = None
-
 
 class TrainingEngine:
     def __init__(self, args, mydb, device, task_id):
@@ -120,6 +119,7 @@ def model_eval_regression(cls, cls_model, device, eval_dataset: ClsRegDataset, r
 
 def train_loop(args, cls_model, device, optimizer, lr_scheduler, train_data_loader, valid_dataset, best_accur,
                best_F1, accumulation_steps, save_file_path):
+    world_size = dist.get_world_size()
     cls_model.train()
     optimizer.zero_grad()
     total_loss = 0.0
@@ -146,7 +146,7 @@ def train_loop(args, cls_model, device, optimizer, lr_scheduler, train_data_load
         loss.backward()
         iter_loss += loss.item()
 
-        if ((batch_idx + 1) % accumulation_steps) == 0:
+        if ((batch_idx + 1) % (accumulation_steps//world_size)) == 0:
             total_norm = 0.0
             max_local_cw_grad_norm = 0.0
             for param in cls_model.parameters():
@@ -184,13 +184,14 @@ def train_loop(args, cls_model, device, optimizer, lr_scheduler, train_data_load
     if (dev_accur > best_accur):  # or (dev_F1 > best_F1):
         best_accur = dev_accur
         best_F1 = dev_F1
-        torch.save({'iter': iter,
-                    'model_state_dict': cls_model.state_dict(),
-                    'optimizer_state_dict': optimizer.state_dict(),
-                    'lr_scheduler_state_dict': lr_scheduler.state_dict(),
-                    'best_dev_accuracy': best_accur,
-                    'best_dev_F1': best_F1},
-                   save_file_path)
+        if (dist.get_rank() == 0):
+            torch.save({'iter': iter,
+                        'model_state_dict': cls_model.state_dict(),
+                        'optimizer_state_dict': optimizer.state_dict(),
+                        'lr_scheduler_state_dict': lr_scheduler.state_dict(),
+                        'best_dev_accuracy': best_accur,
+                        'best_dev_F1': best_F1},
+                       save_file_path)
     epoch_loss = epoch_avg_train_loss / epoch_iter_count
     return best_accur, best_F1, dev_accur, dev_F1, epoch_loss
 
@@ -209,19 +210,19 @@ def submit_valid_results(mydb, model_id: str, main_metric, aux_metric, train_los
 
 
 
-def cls_reg_do_train_main(_rank, args, cfg: BaseConfig, from_db_app):
+def cls_reg_do_train_main(rank, args, cfg: BaseConfig, from_db_app):
     import time
-    global training_engine
-
-    device = torch.device('cuda:%d' % args.default_device)
+    print(time_now(), 'Called post_mlm_train()', flush=True)
+    device = torch.device('cuda:%d' % rank)
+    dist.init_process_group(backend='nccl', init_method='env://', world_size=args.world_size, rank=rank)
+    torch.backends.cudnn.benchmark = True
+    # The flag below controls whether to allow TF32 on matmul. This flag defaults to False
+    # in PyTorch 1.12 and later.
     torch.backends.cuda.matmul.allow_tf32 = True
+    # The flag below controls whether to allow TF32 on cuDNN. This flag defaults to True.
     torch.backends.cudnn.allow_tf32 = True
-    torch.cuda.set_device(args.default_device)
-
-    build_kinlpy_lib()
-    from kinlpy import ffi, lib
-    lib.init_kinlp_socket()
-    print('Morphokin library ready via Unix Socket!', flush=True)
+    torch.cuda.set_device(rank)
+    print('Using device: ', device, "from", dist.get_world_size(), 'processes', flush=True)
 
     mydb = None
 
@@ -237,7 +238,7 @@ def cls_reg_do_train_main(_rank, args, cfg: BaseConfig, from_db_app):
     accumulation_steps = args.accumulation_steps
 
     update_task_state(mydb, task_id, 'Pre-processing inputs ...', 0.0)
-    train_dataset = ClsRegDataset(ffi, lib, mydb, args.train_dataset,
+    train_dataset = ClsRegDataset(mydb, args.train_dataset,
                                   requires_morpho_analysis=True,
                                   label_dict=label_dict,
                                   regression_target=args.regression_target,
@@ -247,7 +248,7 @@ def cls_reg_do_train_main(_rank, args, cfg: BaseConfig, from_db_app):
                                   task_id=task_id,
                                   update_task_state_func=update_task_state)
 
-    valid_dataset = ClsRegDataset(ffi, lib, mydb, args.valid_dataset,
+    valid_dataset = ClsRegDataset(mydb, args.valid_dataset,
                                   requires_morpho_analysis=True,
                                   label_dict=label_dict,
                                   regression_target=args.regression_target,
@@ -261,7 +262,10 @@ def cls_reg_do_train_main(_rank, args, cfg: BaseConfig, from_db_app):
                                    shuffle=True, drop_last=True, num_workers=2, persistent_workers=True)
 
     cls_model = KinyaBERT_SequenceClassifier_from_pretrained(num_classes, device, args, cfg,
-                                                             args.home_path + 'data/' + args.pretrained_model_file)
+                                                             args.pretrained_model_file)
+    cls_model = DDP(cls_model, device_ids=[rank])
+    cls_model.float()
+
     if args.saved_cls_head is not None:
         cls_head_state_dict = torch.load(args.saved_cls_head, map_location=device)
         cls_model.cls_head.load_state_dict(cls_head_state_dict['cls_head_state_dict'])
@@ -270,9 +274,10 @@ def cls_reg_do_train_main(_rank, args, cfg: BaseConfig, from_db_app):
     wd = args.wd  # 0.1
     lr_decay_style = 'linear'
     init_step = 0
+    world_size = dist.get_world_size()
 
     num_epochs = args.num_epochs
-    num_iters = math.ceil(num_epochs * len(train_data_loader) / accumulation_steps)
+    num_iters = math.ceil(num_epochs * len(train_data_loader) / (accumulation_steps//world_size))
     warmup_iter = math.ceil(num_iters * args.warmup_ratio)  # warm-up for first 6% of iterations
 
     optimizer = mAdamW(cls_model.parameters(), lr=peak_lr, betas=(0.9, 0.98), eps=1e-6, weight_decay=wd,
@@ -296,10 +301,11 @@ def cls_reg_do_train_main(_rank, args, cfg: BaseConfig, from_db_app):
         cls_model.load_state_dict(kb_state_dict['model_state_dict'])
         optimizer.load_state_dict(kb_state_dict['optimizer_state_dict'])
         lr_scheduler.load_state_dict(kb_state_dict['lr_scheduler_state_dict'])
-        curr_epochs = math.ceil(lr_scheduler.num_iters * accumulation_steps / len(train_data_loader))
+        curr_epochs = math.ceil(lr_scheduler.num_iters * (accumulation_steps//world_size) / len(train_data_loader))
 
     dev_accur, dev_F1 = 0.0, 0.0
-    update_task_state(mydb, task_id, 'TRAINING ...', 0.0)
+    if (dist.get_rank() == 0):
+        update_task_state(mydb, task_id, 'TRAINING ...', 0.0)
     start = time.time()
     epoch_loss = 99999.99
     for epoch in range(curr_epochs, num_epochs):
@@ -308,24 +314,25 @@ def cls_reg_do_train_main(_rank, args, cfg: BaseConfig, from_db_app):
                                                                         valid_dataset, best_accur, best_F1,
                                                                         accumulation_steps,
                                                                         args.models_save_dir + '/' + args.devbest_model_file)
-        now = time.time()
-        update_task_state(mydb, task_id, 'TRAINING ...', 100.0 * (epoch + 1) / num_epochs,
-                          eta=((now - start) * (num_epochs - (epoch + 1)) / ((epoch + 1) - curr_epochs)))
+        if (dist.get_rank() == 0):
+            now = time.time()
+            update_task_state(mydb, task_id, 'TRAINING ...', 100.0 * (epoch + 1) / num_epochs,
+                              eta=((now - start) * (num_epochs - (epoch + 1)) / ((epoch + 1) - curr_epochs)))
+            submit_valid_results(mydb, args.devbest_model_id, best_accur, best_F1, epoch_loss)
+            submit_valid_results(mydb, args.final_model_id, dev_accur, dev_F1, epoch_loss)
+
+    if (dist.get_rank() == 0):
+        torch.save({'model_state_dict': cls_model.state_dict()}, args.models_save_dir + '/' + args.final_model_file)
         submit_valid_results(mydb, args.devbest_model_id, best_accur, best_F1, epoch_loss)
         submit_valid_results(mydb, args.final_model_id, dev_accur, dev_F1, epoch_loss)
 
-    torch.save({'model_state_dict': cls_model.state_dict()}, args.models_save_dir + '/' + args.final_model_file)
-
-    submit_valid_results(mydb, args.devbest_model_id, best_accur, best_F1, epoch_loss)
-    submit_valid_results(mydb, args.final_model_id, dev_accur, dev_F1, epoch_loss)
     finalize_task(mydb, task_id, 'TRAINING COMPLETE', 100.0, True)
 
     training_engine = None
     return best_accur, best_F1
 
 
-def cleanup():
-    global training_engine
+def cleanup(training_engine):
     try:
         if training_engine is not None:
             finalize_task(training_engine.mydb, training_engine.task_id, 'TRAINING STOPPED', 100.0, False)
@@ -356,4 +363,6 @@ def cls_reg_trainer_main(list_args=None, silent=True):
 
 
 if __name__ == '__main__':
+    from deepkin.clib.libkinlp.kinlpy import build_kinlpy_lib
+    build_kinlpy_lib()
     cls_reg_trainer_main()

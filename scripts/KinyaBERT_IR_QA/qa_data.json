@@ -1,0 +1,10 @@
+
+{"intents": [
+  {"patterns": ["u Rwanda rufite ubuso bungana iki", "ubuso bw'u Rwanda"],
+  "responses": ["U Rwanda rufite ubuso bwa kilometero kare 26338"]
+  },
+  {"patterns": ["Umurwa mukuru wa Uganda ni uwuhe?", "Ni uwuhe murwa mukuru wa Uganda", "umurwa mukuru wa Uganda"],
+  "responses": ["Umurwa mukuru wa Uganda ni Kampala."]
+  }
+]
+}
