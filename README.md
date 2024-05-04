@@ -204,6 +204,22 @@ The idea is to find an answer whose question patterns has the highest average co
 This is introduced in Section 14.2 of "Speech and Language Processing (3rd ed. draft)" by Dan Jurafsky and James H. Martin.
 ![QA Architecture](scripts/KinyaBERT_IR_QA/QA_Embedding.png)
 
+#### 9. On-device automatic speech recognition (ASR) using a state-space model (i.e. Mamba architecture):
+We developed a streaming speech recognition model that can be deployed on light-weight architectures such as smartphones without GPU.
+
+The model is based on [Mamba state-space model architecture](https://arxiv.org/abs/2312.00752) and is implemented in Pytorch.
+
+A pre-trained model is available for download from [https://drive.google.com/file/d/1eNvgPvYWITRKjWM4bH9sOXfDKfFtxqLU/view?usp=sharing](https://drive.google.com/file/d/1eNvgPvYWITRKjWM4bH9sOXfDKfFtxqLU/view?usp=sharing)
+
+The model can be exported into a compiled TorchScript Lite model deployable on smartphones:
+```shell
+python scripts/mamba_mobile_asr/save_mamba_asr_model_for_mobile.py
+```
+
+An Android app that runs this model is available at [https://github.com/anzeyimana/KinyaEmformerRNNT/tree/main/Android/PyTorchStreamingASR](https://github.com/anzeyimana/KinyaEmformerRNNT/tree/main/Android/PyTorchStreamingASR)
+
+A compiled demo APK File is available for download at [https://drive.google.com/file/d/1lChxbEi2dEM3gUWpJH3fSqMCG5NGTdxx/view?usp=sharing](https://drive.google.com/file/d/1lChxbEi2dEM3gUWpJH3fSqMCG5NGTdxx/view?usp=sharing)
+
 ## Citation
 
 If you use this toolkit in your work, please cite us as:
