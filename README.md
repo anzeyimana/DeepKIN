@@ -48,7 +48,7 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$KINLP_HOME/lib/$UBUNTU_VERSION
 ```
 
 Before using the morphological analyzer/generator, the following packages are needed on a Linux: `gcc g++ make cmake libomp-dev libgsl-dev gsl-bin libgsl-dbg python3-pybind11 pybind11-dev unicode libicu-dev`.
-You can install them on Ubuntu Linux as follow:
+You can install them on Ubuntu Linux as follows:
 ```
 sudo apt update
 sudo apt install -y nano gcc g++ make cmake ninja-build libomp-dev libgsl-dev gsl-bin libgsl-dbg python3-pybind11 pybind11-dev unicode libicu-dev
@@ -140,6 +140,12 @@ pip install -e ./
 **Apex installation** might take more than 10 minutes.
 The goal of installing the specified cuda-toolkit and pytorch is to have the same nvcc version used for compiling pytorch binaries and apex package to be compiled. So, having a different cuda-toolkit version is OK as long as the nvcc version is the same as the one used to compile pytorch.
 
+You may need to provide link a forward-compatible C++ standard library; e.g:
+```shell
+unlink </path/to/anaconda>/envs/deepkin/lib/libstdc++.so.6
+ln -s /usr/lib/x86_64-linux-gnu/libstdc++.so.6 </path/to/anaconda>/envs/deepkin/lib/libstdc++.so.6
+
+```
 
 Finally, you can run the following experimental scripts for various tasks:
 First, you will need to run the morphological analyzer server in the background:
