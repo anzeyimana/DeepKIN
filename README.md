@@ -99,9 +99,13 @@ conda create -n deepkin
 
 conda activate deepkin
 
-conda install -c "nvidia/label/cuda-11.8.0" cuda-toolkit
+conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia
 
-conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia
+conda install nvidia/label/cuda-12.1.0::cuda-toolkit
+
+conda install nvidia/label/cuda-12.1.0::cuda-cudart
+
+conda install nvidia/label/cuda-12.1.0::cuda-profiler-api
 
 pip install Cython
 pip install distro
@@ -140,7 +144,7 @@ pip install -e ./
 **Apex installation** might take more than 10 minutes.
 The goal of installing the specified cuda-toolkit and pytorch is to have the same nvcc version used for compiling pytorch binaries and apex package to be compiled. So, having a different cuda-toolkit version is OK as long as the nvcc version is the same as the one used to compile pytorch.
 
-You may need to provide link a forward-compatible C++ standard library; e.g:
+Depending on your OS installation, sometimes, though rarely, you may need to link a forward-compatible C++ standard library; e.g:
 ```shell
 unlink </path/to/anaconda>/envs/deepkin/lib/libstdc++.so.6
 ln -s /usr/lib/x86_64-linux-gnu/libstdc++.so.6 </path/to/anaconda>/envs/deepkin/lib/libstdc++.so.6
