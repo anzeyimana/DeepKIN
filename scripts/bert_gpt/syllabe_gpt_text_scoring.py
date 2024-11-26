@@ -23,7 +23,7 @@ def batch_lm_scores(kinya_sentences: List[str], syllabe_gpt: SyllabeGPT, device:
         tgt_key_padding_mask = generate_input_key_padding_mask(syllabe_id_lengths, ignore_last=True).to(syllabe_ids.device)
         tgt_decoder_mask = generate_square_subsequent_mask(max(syllabe_id_lengths)).to(syllabe_ids.device)
         lm_scores = syllabe_gpt.batched_nll_losses(syllabe_ids, syllabe_id_lengths, tgt_key_padding_mask, tgt_decoder_mask)
-    return lm_scores.tolist()
+    return lm_scores
 
 if __name__ == '__main__':
     # Interactive LM scoring with SyllabeGPT
