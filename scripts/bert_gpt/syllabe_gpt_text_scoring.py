@@ -54,4 +54,4 @@ if __name__ == '__main__':
             print('Exiting ...')
             sys.exit(0)
         scores = batch_lm_scores([input_sentence], syllabe_gpt, device)
-        print(f'LM Score: {scores[0]:.6f}\n')
+        print(f'\n==> LM Score: {scores[0]:.6f}\n')
