@@ -7,7 +7,7 @@ from deepkin.models.syllabe_vocab import BLANK_ID
 from deepkin.models.syllabe_vocab import syllbe_vocab_size
 
 if __name__ == '__main__':
-    PRE_TRAINED_MAMBA_SSM_ASR_MODEL_FILE = "mamba_ssm_asr_model_base_2024-04-17.pt_best_valid_loss.pt"
+    PRE_TRAINED_MAMBA_SSM_ASR_MODEL_FILE = "/home/nzeyi/KINLP/data/foundational_models/mamba_ssm_asr_model_base_2024-04-17.pt_best_valid_loss.pt"# "mamba_ssm_asr_model_base_2024-04-17.pt_best_valid_loss.pt"
     d_model, n_layers = 768, 20
     mamba_config = MambaConfig(d_model, n_layers)
     wrapper = MambaMobileAsrModel(mamba_config,syllbe_vocab_size(), BLANK_ID,
